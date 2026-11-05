@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Holiday Pot Raffle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<script>
+  /* ====== PASTE YOUR APPS SCRIPT WEB APP URL HERE ====== */
+  const API_URL = "https://script.google.com/macros/s/AKfycbwL7b3H3VrNYCxOyatCubbOHEjGsbSvfF5k5DHudBixVju47pgcrVvv5Ie9R7fyiZ9_/exec";
+</script>
+<style>
+:root{
+  --bg:#f3f5f2; --paper:#ffffff; --ink:#18241f; --muted:#5d6b64; --line:#d8ded9;
+  --spruce:#1f4d3c; --spruce-ink:#ffffff; --berry:#b3263e; --berry-soft:#f7e3e6;
+  --gold:#a77a1c; --gold-soft:#f6ecd6; --ok:#2f7a4f; --ok-soft:#e1f0e6;
+  --display:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1613; --paper:#17211d; --ink:#e7eee9; --muted:#97a69e; --line:#2a3832;
+  --spruce:#2e6b54; --spruce-ink:#f1f7f3; --berry:#ec6b80; --berry-soft:#3a1d24;
+  --gold:#e0b456; --gold-soft:#332a16; --ok:#6cc290; --ok-soft:#18301f; color-scheme:dark}}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+[hidden]{display:none!important}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--display);font-weight:800;letter-spacing:.01em;margin:0;text-wrap:balance;text-transform:uppercase}
+h2{font-size:22px}
+.label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.stub{background:var(--spruce);color:var(--spruce-ink);border-radius:14px;padding:20px;
+  display:grid;grid-template-columns:1fr auto;gap:12px 16px;align-items:end;
+  -webkit-mask:radial-gradient(circle 10px at 0 62%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 10px at 100% 62%,#0000 98%,#000) right/51% 100% no-repeat;
+          mask:radial-gradient(circle 10px at 0 62%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 10px at 100% 62%,#0000 98%,#000) right/51% 100% no-repeat}
+.stub h1{font-size:15px;letter-spacing:.14em;opacity:.85;grid-column:1/-1}
+.pot{font-family:var(--display);font-weight:800;font-size:76px;line-height:.9}
+.stub .side{text-align:right;font-size:13px;opacity:.9;display:flex;flex-direction:column;gap:2px}
+.stub .side b{font-family:var(--mono);font-size:18px}
+.perf{grid-column:1/-1;border-top:2px dashed color-mix(in srgb,var(--spruce-ink) 40%,transparent);margin-top:6px}
+.split{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px}
+.split b{font-family:var(--mono)}
+
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input[type=text],input[type=password]{flex:1 1 180px;min-width:0;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.stepper button{width:40px;height:44px;border:0;background:var(--bg);color:var(--ink);font-size:20px}
+.stepper output{min-width:44px;text-align:center;font-family:var(--mono);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip.game[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--paper)}
+.primary{background:var(--berry);color:#fff;border:0;border-radius:10px;padding:13px 16px;font-weight:700;font-size:15px;width:100%}
+.primary:disabled{opacity:.5;cursor:default}
+.ghost{background:none;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.toast{font-size:13px;font-weight:600;color:var(--ok);min-height:1.2em;margin:0}
+.toast.err{color:var(--berry)}
+
+.ledger-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px}
+.list{display:flex;flex-direction:column}
+.entry{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.entry:first-child{border-top:0}
+.tix{font-family:var(--mono);font-weight:700;font-size:13px;background:var(--bg);border:1px dashed var(--line);border-radius:6px;padding:4px 7px;white-space:nowrap}
+.who{min-width:0}
+.who strong{display:block;overflow-wrap:anywhere}
+.meta{font-size:12px;color:var(--muted)}
+.amt{text-align:right;font-family:var(--mono);font-weight:700}
+.tags{grid-column:2/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:3px 7px}
+.tag.paid{background:var(--ok-soft);color:var(--ok)}
+.tag.owes{background:var(--berry-soft);color:var(--berry)}
+.tag.game{background:var(--gold-soft);color:var(--gold)}
+.link{background:none;border:0;padding:3px 4px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:underline}
+.link.danger{color:var(--berry)}
+.people .entry{grid-template-columns:1fr auto auto}
+.odds{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.bar{grid-column:1/-1;height:4px;background:var(--bg);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--spruce)}
+.empty{padding:22px 4px;text-align:center;color:var(--muted)}
+
+.drawbox{text-align:center;gap:10px}
+.drum{font-family:var(--display);font-weight:800;font-size:64px;line-height:1;color:var(--berry)}
+.winner{font-size:20px;font-weight:700}
+.warn{background:var(--berry-soft);color:var(--berry);border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;text-align:left}
+.confirm{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="stub" aria-label="Pot summary">
+    <h1>Holiday Pot Raffle · $10 a ticket</h1>
+    <div>
+      <div class="label" style="color:inherit;opacity:.75">Current pot</div>
+      <div class="pot num" id="pot">$0</div>
+    </div>
+    <div class="side">
+      <span><b id="tixCount">0</b> tickets</span>
+      <span><b id="ppl">0</b> people</span>
+    </div>
+    <div class="perf"></div>
+    <div class="split">
+      <span>Bought <b id="sPaid">$0</b></span>
+      <span>Won in games <b id="sGame">$0</b></span>
+      <span class="host-only" hidden>Still to collect <b id="sOwed">$0</b></span>
+    </div>
+  </section>
+
+  <section class="card host-only" hidden aria-labelledby="addH">
+    <h2 id="addH">Log tickets</h2>
+    <div class="row">
+      <input type="text" id="nameIn" list="names" placeholder="Name" autocomplete="off" aria-label="Name">
+      <datalist id="names"></datalist>
+      <div class="stepper" aria-label="Number of tickets">
+        <button type="button" id="minus" aria-label="One fewer">−</button>
+        <output id="qty" class="num">1</output>
+        <button type="button" id="plus" aria-label="One more">+</button>
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">How</div>
+      <div class="chips" id="kindChips">
+        <button type="button" class="chip" data-kind="Venmo" aria-pressed="true">Venmo</button>
+        <button type="button" class="chip" data-kind="Zelle" aria-pressed="false">Zelle</button>
+        <button type="button" class="chip" data-kind="Cash" aria-pressed="false">Cash</button>
+        <button type="button" class="chip" data-kind="Owes" aria-pressed="false">Owes me</button>
+        <button type="button" class="chip game" data-kind="Game" aria-pressed="false">Won a minigame</button>
+      </div>
+    </div>
+    <input type="text" id="noteIn" placeholder="Note (optional): game name, Venmo memo…" aria-label="Note">
+    <button class="primary" id="addBtn" disabled>Add 1 ticket · $10</button>
+    <p class="toast" id="toast" role="status"></p>
+  </section>
+
+  <section class="card" aria-labelledby="ledH">
+    <div class="ledger-head">
+      <h2 id="ledH">Tickets</h2>
+      <div class="tabs">
+        <button class="chip" data-tab="log" aria-pressed="true">Entries</button>
+        <button class="chip" data-tab="people" aria-pressed="false">Odds</button>
+      </div>
+    </div>
+    <div class="list" id="list"><div class="empty">Loading tickets…</div></div>
+    <div class="row host-only" hidden>
+      <button class="ghost" id="copyBtn">Copy pot update for the group chat</button>
+    </div>
+  </section>
+
+  <section class="card drawbox" aria-labelledby="drawH">
+    <h2 id="drawH">The draw</h2>
+    <div class="drum num" id="drum">—</div>
+    <div class="winner" id="winner"></div>
+    <div class="warn host-only" id="owedWarn" hidden></div>
+    <div class="confirm host-only" id="drawCtl" hidden></div>
+    <p class="hint" id="drawHint">Every ticket number goes in the drum. Your odds are your tickets ÷ total tickets.</p>
+  </section>
+
+  <section class="card" id="keyCard" hidden aria-labelledby="keyH">
+    <h2 id="keyH">Host mode</h2>
+    <div class="row">
+      <input type="password" id="keyIn" placeholder="Host key" aria-label="Host key" autocomplete="off">
+      <button class="ghost" id="keyBtn">Unlock</button>
+    </div>
+    <p class="toast" id="keyToast" role="status"></p>
+  </section>
+
+  <footer>
+    <span id="updated">Connecting…</span>
+    <span><button class="link" id="hostToggle">Host</button></span>
+  </footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const PRICE=10;
+let entries=[], draw=null, qty=1, kind="Venmo", tab="log", pendingDelete=null, drawArmed=false, rolling=false, busy=false, lastLoad=0;
+let hostKey=null;
+try{hostKey=localStorage.getItem("raffleHostKey")}catch(e){}
+
+const money=n=>"$"+n.toLocaleString("en-US");
+const fmtTime=iso=>{const d=new Date(iso);return isNaN(d)?"":d.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const range=e=>e.from===e.to?`#${e.from}`:`#${e.from}–${e.to}`;
+const isHost=()=>!!hostKey;
+
+/* ---------- API ---------- */
+async function getData(){
+  const r=await fetch(API_URL+(API_URL.includes("?")?"&":"?")+"t="+Date.now());
+  return r.json();
+}
+async function post(action,payload={}){
+  const r=await fetch(API_URL,{method:"POST",body:JSON.stringify({action,key:hostKey,...payload})});
+  return r.json();
+}
+function apply(res){
+  if(res&&res.ok){entries=res.entries||[];draw=res.draw||null;lastLoad=Date.now();render()}
+}
+async function refresh(){
+  if(busy||rolling)return;
+  try{apply(await getData());$("updated").textContent="Updated "+new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}
+  catch(e){$("updated").textContent="Can't reach the ledger right now. Retrying…"}
+}
+
+/* ---------- Render ---------- */
+function totals(){
+  let t=0,paid=0,game=0,owed=0;const people=new Map();
+  for(const e of entries){const n=e.qty||0;t+=n;
+    if(e.kind==="Game")game+=n*PRICE;else if(e.paid)paid+=n*PRICE;else owed+=n*PRICE;
+    const key=(e.name||"").trim().toLowerCase();
+    const p=people.get(key)||{name:(e.name||"").trim(),n:0,owed:0,game:0};
+    p.n+=n;if(e.kind!=="Game"&&!e.paid)p.owed+=n*PRICE;if(e.kind==="Game")p.game+=n;people.set(key,p)}
+  return {t,paid,game,owed,people:[...people.values()].sort((a,b)=>b.n-a.n)};
+}
+
+function render(){
+  const T=totals(), host=isHost();
+  document.querySelectorAll(".host-only").forEach(el=>el.hidden=!host);
+  $("hostToggle").textContent=host?"Exit host mode":"Host";
+  $("pot").textContent=money(T.t*PRICE);$("tixCount").textContent=T.t;$("ppl").textContent=T.people.length;
+  $("sPaid").textContent=money(T.paid+(host?0:T.owed));$("sGame").textContent=money(T.game);$("sOwed").textContent=money(T.owed);
+  $("names").innerHTML=T.people.map(p=>`<option value="${esc(p.name)}">`).join("");
+
+  const L=$("list");
+  if(!entries.length){L.innerHTML=`<div class="empty">${host?"No tickets yet. Log the first sale above and it gets ticket #1.":"No tickets sold yet. Be the first."}</div>`}
+  else if(tab==="log"){
+    L.innerHTML=[...entries].sort((a,b)=>b.from-a.from).map(e=>{
+      let tags="";
+      if(e.kind==="Game")tags=`<span class="tag game">Minigame win</span>`;
+      else if(host)tags=e.paid?`<span class="tag paid">Paid · ${esc(e.kind)}</span>`:`<span class="tag owes">Owes ${money(e.qty*PRICE)}</span><button class="link" data-pay="${esc(e.id)}">Mark paid</button>`;
+      if(host)tags+=pendingDelete===e.id?`<button class="link danger" data-delyes="${esc(e.id)}">Confirm remove</button><button class="link" data-delno="1">Keep</button>`:`<button class="link" data-del="${esc(e.id)}">Remove</button>`;
+      const meta=fmtTime(e.at)+(host&&e.note?" · "+esc(e.note):"");
+      return `<div class="entry"><span class="tix">${range(e)}</span><div class="who"><strong>${esc(e.name)}</strong><span class="meta">${meta}</span></div><span class="amt num">${e.qty} tix</span>${tags?`<div class="tags">${tags}</div>`:""}</div>`}).join("");
+  } else {
+    L.innerHTML=`<div class="people">`+T.people.map(p=>{const pct=T.t?p.n/T.t*100:0;
+      const sub=(p.game?`${p.game} from games`:"all bought")+(host&&p.owed?` · <span style="color:var(--berry)">owes ${money(p.owed)}</span>`:"");
+      return `<div class="entry"><div class="who"><strong>${esc(p.name)}</strong><span class="meta">${sub}</span></div><span class="odds">${pct.toFixed(1)}%</span><span class="amt num">${p.n} tix</span><div class="bar"><i style="width:${pct}%"></i></div></div>`}).join("")+`</div>`;
+  }
+
+  if(!rolling){
+    if(draw){$("drum").textContent="#"+draw.ticket;$("winner").textContent=`${draw.name} wins ${money(draw.pot)}!`}
+    else{$("drum").textContent="—";$("winner").textContent=T.t?`${T.t} tickets in the drum`:""}
+  }
+  $("drawHint").hidden=!!draw;
+  if(host){
+    $("owedWarn").hidden=!(T.owed>0&&!draw);
+    $("owedWarn").textContent=`${money(T.owed)} is still unpaid. Collect it or remove those tickets before drawing.`;
+    const ctl=$("drawCtl");
+    if(rolling)ctl.innerHTML="";
+    else if(draw)ctl.innerHTML=drawArmed?`<button class="ghost" id="undoYes">Yes, clear the result</button><button class="ghost" id="undoNo">Cancel</button>`:`<button class="ghost" id="undo">Clear result and redraw</button>`;
+    else ctl.innerHTML=!T.t?"":drawArmed?`<button class="primary" id="drawYes" style="width:auto">Draw now · closes sales</button><button class="ghost" id="drawNo">Not yet</button>`:`<button class="primary" id="drawBtn" style="width:auto">Draw the winner</button>`;
+    $("addBtn").disabled=busy||!$("nameIn").value.trim()||!!draw;
+    $("addBtn").textContent=draw?"Sales closed · winner drawn":`Add ${qty} ticket${qty>1?"s":""} · ${money(qty*PRICE)}${kind==="Game"?" on you":""}`;
+  }
+}
+
+function flash(msg,err){const t=$("toast");t.textContent=msg;t.classList.toggle("err",!!err);clearTimeout(flash.t);flash.t=setTimeout(()=>t.textContent="",5000)}
+
+/* ---------- Host actions ---------- */
+async function act(action,payload,okMsg){
+  busy=true;render();
+  try{const res=await post(action,payload);
+    if(res.ok){apply(res);if(okMsg)flash(okMsg(res))}
+    else if(res.error==="bad_key"){flash("Host key didn't match. Unlock host mode again.",true);setKey(null)}
+    else if(res.error==="closed")flash("Sales are closed because a winner was drawn.",true);
+    else flash("That didn't save. Try again.",true);
+    return res;
+  }catch(e){flash("Couldn't reach the Google Sheet. Check your connection and try again.",true)}
+  finally{busy=false;render()}
+}
+
+$("minus").onclick=()=>{qty=Math.max(1,qty-1);$("qty").textContent=qty;render()};
+$("plus").onclick=()=>{qty=Math.min(50,qty+1);$("qty").textContent=qty;render()};
+$("nameIn").oninput=render;
+$("kindChips").onclick=e=>{const b=e.target.closest("[data-kind]");if(!b)return;kind=b.dataset.kind;
+  document.querySelectorAll("#kindChips .chip").forEach(c=>c.setAttribute("aria-pressed",c===b));render()};
+document.querySelector(".tabs").onclick=e=>{const b=e.target.closest("[data-tab]");if(!b)return;tab=b.dataset.tab;
+  document.querySelectorAll(".tabs .chip").forEach(c=>c.setAttribute("aria-pressed",c===b));render()};
+
+$("addBtn").onclick=async()=>{
+  const name=$("nameIn").value.trim();if(!name)return;
+  const q=qty;
+  const res=await act("add",{name,qty:q,kind,note:$("noteIn").value.trim()},r=>{
+    const mine=r.entries.filter(x=>x.name===name).sort((a,b)=>b.from-a.from)[0];
+    return `${name}: ${mine?range(mine):q+" ticket(s)"} logged.`});
+  if(res&&res.ok){$("nameIn").value="";$("noteIn").value="";qty=1;$("qty").textContent=1;render()}
+};
+
+$("list").onclick=e=>{
+  const d=e.target.dataset;
+  if(d.pay)act("markPaid",{id:d.pay});
+  else if(d.del){pendingDelete=d.del;render()}
+  else if(d.delno){pendingDelete=null;render()}
+  else if(d.delyes){pendingDelete=null;act("remove",{id:d.delyes})}
+};
+
+$("drawCtl").onclick=async e=>{
+  const id=e.target.id;
+  if(id==="drawBtn"||id==="undo"){drawArmed=true;render();return}
+  if(id==="drawNo"||id==="undoNo"){drawArmed=false;render();return}
+  if(id==="undoYes"){drawArmed=false;act("undoDraw",{});return}
+  if(id==="drawYes"){
+    drawArmed=false;const pool=[];for(const x of entries)for(let n=x.from;n<=x.to;n++)pool.push(n);
+    rolling=true;render();
+    const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const spin=setInterval(()=>{$("drum").textContent="#"+pool[Math.floor(Math.random()*pool.length)]},70);
+    const [res]=await Promise.all([post("draw",{}).catch(()=>null),new Promise(r=>setTimeout(r,reduce?0:2400))]);
+    clearInterval(spin);rolling=false;
+    if(res&&res.ok)apply(res);else{flash("The draw didn't go through. Try again.",true);render()}
+  }
+};
+
+$("copyBtn").onclick=()=>{
+  const T=totals();
+  const txt=`Raffle update: the pot is ${money(T.t*PRICE)} (${T.t} tickets from ${T.people.length} people). Tickets are $10 and open until the draw at the party. Live board: ${location.origin+location.pathname}`;
+  const done=()=>flash("Copied. Paste it in the group chat.");
+  if(navigator.clipboard)navigator.clipboard.writeText(txt).then(done).catch(()=>flash(txt));else flash(txt);
+};
+
+/* ---------- Host mode ---------- */
+function setKey(k){hostKey=k;try{k?localStorage.setItem("raffleHostKey",k):localStorage.removeItem("raffleHostKey")}catch(e){}render()}
+$("hostToggle").onclick=()=>{if(isHost()){setKey(null)}else{$("keyCard").hidden=!$("keyCard").hidden;if(!$("keyCard").hidden)$("keyIn").focus()}};
+$("keyBtn").onclick=async()=>{
+  const k=$("keyIn").value.trim();if(!k)return;
+  $("keyToast").textContent="Checking…";
+  try{const r=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"check",key:k})}).then(r=>r.json());
+    if(r.ok){setKey(k);apply(r);$("keyCard").hidden=true;$("keyIn").value="";$("keyToast").textContent=""}
+    else $("keyToast").textContent="That key didn't match.";
+  }catch(e){$("keyToast").textContent="Couldn't reach the Google Sheet."}
+};
+
+/* ---------- Boot ---------- */
+if(API_URL.startsWith("PASTE")){$("list").innerHTML=`<div class="empty">Add your Apps Script web app URL at the top of index.html.</div>`;$("updated").textContent="Not connected"}
+else{
+  render();refresh();
+  setInterval(()=>{if(document.visibilityState==="visible")refresh()},10000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-lastLoad>5000)refresh()});
+}
+</script>
+</body>
+</html>
