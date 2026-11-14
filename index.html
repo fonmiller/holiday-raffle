@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <script>
   /* ====== PASTE YOUR APPS SCRIPT WEB APP URL HERE ====== */
-  const API_URL = "https://script.google.com/macros/s/AKfycbwL7b3H3VrNYCxOyatCubbOHEjGsbSvfF5k5DHudBixVju47pgcrVvv5Ie9R7fyiZ9_/exec";
+  const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 </script>
 <style>
 :root{
@@ -94,6 +94,13 @@ input[type=text],input[type=password]{flex:1 1 180px;min-width:0;font:inherit;pa
 .winner{font-size:20px;font-weight:700}
 .warn{background:var(--berry-soft);color:var(--berry);border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;text-align:left}
 .confirm{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.game-row{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.game-row:first-child{border-top:0}
+.game-row .gnum{font-family:var(--display);font-weight:800;font-size:20px;width:2.2em;color:var(--gold)}
+.game-row.locked{opacity:.55}
+.game-row .award{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.game-row .award input{flex:1 1 160px}
+.game-row .award button{width:auto;flex:0 0 auto}
 footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -113,7 +120,7 @@ footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-s
     <div class="perf"></div>
     <div class="split">
       <span>Bought <b id="sPaid">$0</b></span>
-      <span>Won in games <b id="sGame">$0</b></span>
+      <span>Free game tickets <b id="sGame">0</b></span>
       <span class="host-only" hidden>Still to collect <b id="sOwed">$0</b></span>
     </div>
   </section>
@@ -136,12 +143,21 @@ footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-s
         <button type="button" class="chip" data-kind="Zelle" aria-pressed="false">Zelle</button>
         <button type="button" class="chip" data-kind="Cash" aria-pressed="false">Cash</button>
         <button type="button" class="chip" data-kind="Owes" aria-pressed="false">Owes me</button>
-        <button type="button" class="chip game" data-kind="Game" aria-pressed="false">Won a minigame</button>
       </div>
     </div>
-    <input type="text" id="noteIn" placeholder="Note (optional): game name, Venmo memo…" aria-label="Note">
+    <input type="text" id="noteIn" placeholder="Note (optional): Venmo memo…" aria-label="Note">
     <button class="primary" id="addBtn" disabled>Add 1 ticket · $10</button>
     <p class="toast" id="toast" role="status"></p>
+  </section>
+
+  <section class="card host-only" hidden aria-labelledby="gamesH">
+    <div class="ledger-head">
+      <h2 id="gamesH">Minigames</h2>
+      <span class="label" id="gamesCount">0 of 5 played</span>
+    </div>
+    <p class="hint">Award one game at a time. The winner gets 5 free tickets, the same odds as 5 bought tickets. Free tickets add nothing to the pot.</p>
+    <div class="list" id="games"></div>
+    <p class="toast" id="gameToast" role="status"></p>
   </section>
 
   <section class="card" aria-labelledby="ledH">
@@ -184,8 +200,8 @@ footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-s
 
 <script>
 const $=id=>document.getElementById(id);
-const PRICE=10;
-let entries=[], draw=null, qty=1, kind="Venmo", tab="log", pendingDelete=null, drawArmed=false, rolling=false, busy=false, lastLoad=0;
+const PRICE=10, MINIGAMES=5, GAME_TICKETS=5;
+let gameArmed=null, entries=[], draw=null, qty=1, kind="Venmo", tab="log", pendingDelete=null, drawArmed=false, rolling=false, busy=false, lastLoad=0;
 let hostKey=null;
 try{hostKey=localStorage.getItem("raffleHostKey")}catch(e){}
 
@@ -228,8 +244,8 @@ function render(){
   const T=totals(), host=isHost();
   document.querySelectorAll(".host-only").forEach(el=>el.hidden=!host);
   $("hostToggle").textContent=host?"Exit host mode":"Host";
-  $("pot").textContent=money(T.t*PRICE);$("tixCount").textContent=T.t;$("ppl").textContent=T.people.length;
-  $("sPaid").textContent=money(T.paid+(host?0:T.owed));$("sGame").textContent=money(T.game);$("sOwed").textContent=money(T.owed);
+  $("pot").textContent=money(T.paid+T.owed);$("tixCount").textContent=T.t;$("ppl").textContent=T.people.length;
+  $("sPaid").textContent=money(T.paid+(host?0:T.owed));$("sGame").textContent=T.game/PRICE;$("sOwed").textContent=money(T.owed);
   $("names").innerHTML=T.people.map(p=>`<option value="${esc(p.name)}">`).join("");
 
   const L=$("list");
@@ -237,14 +253,14 @@ function render(){
   else if(tab==="log"){
     L.innerHTML=[...entries].sort((a,b)=>b.from-a.from).map(e=>{
       let tags="";
-      if(e.kind==="Game")tags=`<span class="tag game">Minigame win</span>`;
+      if(e.kind==="Game")tags=`<span class="tag game">${esc(e.note||"Minigame")} win · ${e.qty}x odds</span>`;
       else if(host)tags=e.paid?`<span class="tag paid">Paid · ${esc(e.kind)}</span>`:`<span class="tag owes">Owes ${money(e.qty*PRICE)}</span><button class="link" data-pay="${esc(e.id)}">Mark paid</button>`;
       if(host)tags+=pendingDelete===e.id?`<button class="link danger" data-delyes="${esc(e.id)}">Confirm remove</button><button class="link" data-delno="1">Keep</button>`:`<button class="link" data-del="${esc(e.id)}">Remove</button>`;
-      const meta=fmtTime(e.at)+(host&&e.note?" · "+esc(e.note):"");
+      const meta=fmtTime(e.at)+(host&&e.note&&e.kind!=="Game"?" · "+esc(e.note):"");
       return `<div class="entry"><span class="tix">${range(e)}</span><div class="who"><strong>${esc(e.name)}</strong><span class="meta">${meta}</span></div><span class="amt num">${e.qty} tix</span>${tags?`<div class="tags">${tags}</div>`:""}</div>`}).join("");
   } else {
     L.innerHTML=`<div class="people">`+T.people.map(p=>{const pct=T.t?p.n/T.t*100:0;
-      const sub=(p.game?`${p.game} from games`:"all bought")+(host&&p.owed?` · <span style="color:var(--berry)">owes ${money(p.owed)}</span>`:"");
+      const sub=(p.game?`${p.game} from minigames`:"all bought")+(host&&p.owed?` · <span style="color:var(--berry)">owes ${money(p.owed)}</span>`:"");
       return `<div class="entry"><div class="who"><strong>${esc(p.name)}</strong><span class="meta">${sub}</span></div><span class="odds">${pct.toFixed(1)}%</span><span class="amt num">${p.n} tix</span><div class="bar"><i style="width:${pct}%"></i></div></div>`}).join("")+`</div>`;
   }
 
@@ -254,6 +270,7 @@ function render(){
   }
   $("drawHint").hidden=!!draw;
   if(host){
+    if(!document.activeElement||document.activeElement.id!=="gameName")renderGames();
     $("owedWarn").hidden=!(T.owed>0&&!draw);
     $("owedWarn").textContent=`${money(T.owed)} is still unpaid. Collect it or remove those tickets before drawing.`;
     const ctl=$("drawCtl");
@@ -261,8 +278,32 @@ function render(){
     else if(draw)ctl.innerHTML=drawArmed?`<button class="ghost" id="undoYes">Yes, clear the result</button><button class="ghost" id="undoNo">Cancel</button>`:`<button class="ghost" id="undo">Clear result and redraw</button>`;
     else ctl.innerHTML=!T.t?"":drawArmed?`<button class="primary" id="drawYes" style="width:auto">Draw now · closes sales</button><button class="ghost" id="drawNo">Not yet</button>`:`<button class="primary" id="drawBtn" style="width:auto">Draw the winner</button>`;
     $("addBtn").disabled=busy||!$("nameIn").value.trim()||!!draw;
-    $("addBtn").textContent=draw?"Sales closed · winner drawn":`Add ${qty} ticket${qty>1?"s":""} · ${money(qty*PRICE)}${kind==="Game"?" on you":""}`;
+    $("addBtn").textContent=draw?"Sales closed · winner drawn":(kind==="Game"?`Add ${qty} free game ticket${qty>1?"s":""}`:`Add ${qty} ticket${qty>1?"s":""} · ${money(qty*PRICE)}`);
   }
+}
+
+const gameNum=note=>{const m=String(note||"").match(/^Minigame (\d+)/);return m?Number(m[1]):0};
+function renderGames(){
+  const won={};for(const e of entries)if(e.kind==="Game"){const g=gameNum(e.note);if(g)won[g]=e}
+  const played=Object.keys(won).length;
+  $("gamesCount").textContent=`${played} of ${MINIGAMES} played`;
+  let next=0;for(let g=1;g<=MINIGAMES;g++)if(!won[g]){next=g;break}
+  const keepVal=$("gameName")?$("gameName").value:"";
+  let html="";
+  for(let g=1;g<=MINIGAMES;g++){
+    const e=won[g];
+    if(e){
+      const undo=gameArmed===e.id?`<button class="link danger" data-gundoyes="${esc(e.id)}">Confirm undo</button><button class="link" data-gundono="1">Keep</button>`:`<button class="link" data-gundo="${esc(e.id)}">Undo</button>`;
+      html+=`<div class="game-row"><span class="gnum">G${g}</span><div class="who"><strong>${esc(e.name)}</strong><span class="meta">${GAME_TICKETS} free tickets · ${range(e)}</span></div><span>${undo}</span></div>`;
+    } else if(g===next&&!draw){
+      html+=`<div class="game-row"><span class="gnum">G${g}</span><div class="who"><strong>Up now</strong><span class="meta">Who won game ${g}?</span></div><span></span>
+        <div class="award"><input type="text" id="gameName" list="names" placeholder="Winner's name" autocomplete="off" aria-label="Winner of game ${g}"><button class="primary" id="gameBtn" data-game="${g}">Award ${GAME_TICKETS} tickets</button></div></div>`;
+    } else {
+      html+=`<div class="game-row locked"><span class="gnum">G${g}</span><div class="who"><strong>${draw?"Not played":"Locked"}</strong><span class="meta">${draw?"The draw already happened":"Opens after game "+(g-1)}</span></div><span></span></div>`;
+    }
+  }
+  $("games").innerHTML=html;
+  if($("gameName")){$("gameName").value=keepVal;$("gameBtn").disabled=busy}
 }
 
 function flash(msg,err){const t=$("toast");t.textContent=msg;t.classList.toggle("err",!!err);clearTimeout(flash.t);flash.t=setTimeout(()=>t.textContent="",5000)}
@@ -305,6 +346,29 @@ $("list").onclick=e=>{
   else if(d.delyes){pendingDelete=null;act("remove",{id:d.delyes})}
 };
 
+function gameFlash(msg,err){const t=$("gameToast");t.textContent=msg;t.classList.toggle("err",!!err);clearTimeout(gameFlash.t);gameFlash.t=setTimeout(()=>t.textContent="",6000)}
+$("games").onclick=async e=>{
+  const t=e.target,d=t.dataset;
+  if(t.id==="gameBtn"){
+    const name=$("gameName").value.trim(),g=Number(d.game);
+    if(!name){gameFlash("Type the winner's name first.",true);$("gameName").focus();return}
+    busy=true;t.disabled=true;
+    try{const res=await post("awardGame",{name,game:g});
+      if(res.ok){$("gameName").value="";apply(res);gameFlash(`${name} won game ${g}: ${GAME_TICKETS} free tickets added.`)}
+      else if(res.error==="bad_key"){gameFlash("Host key didn't match. Unlock host mode again.",true);setKey(null)}
+      else if(res.error==="game_done")gameFlash(`Game ${g} already has a winner.`,true);
+      else if(res.error==="closed")gameFlash("The draw already happened.",true);
+      else gameFlash("That didn't save. Try again.",true);
+    }catch(err){gameFlash("Couldn't reach the Google Sheet. Try again.",true)}
+    finally{busy=false;renderGames();render()}
+  }
+  else if(d.gundo){gameArmed=d.gundo;renderGames()}
+  else if(d.gundono){gameArmed=null;renderGames()}
+  else if(d.gundoyes){gameArmed=null;await act("remove",{id:d.gundoyes});renderGames()}
+};
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="gameName")$("gameBtn").click()});
+document.addEventListener("focusout",e=>{if(e.target.id==="gameName")setTimeout(()=>{if(document.activeElement?.id!=="gameName"&&document.activeElement?.id!=="gameBtn")renderGames()},200)});
+
 $("drawCtl").onclick=async e=>{
   const id=e.target.id;
   if(id==="drawBtn"||id==="undo"){drawArmed=true;render();return}
@@ -323,7 +387,7 @@ $("drawCtl").onclick=async e=>{
 
 $("copyBtn").onclick=()=>{
   const T=totals();
-  const txt=`Raffle update: the pot is ${money(T.t*PRICE)} (${T.t} tickets from ${T.people.length} people). Tickets are $10 and open until the draw at the party. Live board: ${location.origin+location.pathname}`;
+  const txt=`Raffle update: the pot is ${money(T.paid+T.owed)} (${T.t} tickets from ${T.people.length} people). Tickets are $10 and open until the draw at the party. Live board: ${location.origin+location.pathname}`;
   const done=()=>flash("Copied. Paste it in the group chat.");
   if(navigator.clipboard)navigator.clipboard.writeText(txt).then(done).catch(()=>flash(txt));else flash(txt);
 };
