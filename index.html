@@ -212,21 +212,28 @@ const range=e=>e.from===e.to?`#${e.from}`:`#${e.from}–${e.to}`;
 const isHost=()=>!!hostKey;
 
 /* ---------- API ---------- */
-async function getData(){
-  const r=await fetch(API_URL+(API_URL.includes("?")?"&":"?")+"t="+Date.now());
+async function getData(sync){
+  const r=await fetch(API_URL+(API_URL.includes("?")?"&":"?")+(sync?"sync=1&":"")+"t="+Date.now());
   return r.json();
 }
 async function post(action,payload={}){
   const r=await fetch(API_URL,{method:"POST",body:JSON.stringify({action,key:hostKey,...payload})});
   return r.json();
 }
+let loaded=false, lastSync=0;
 function apply(res){
-  if(res&&res.ok){entries=res.entries||[];draw=res.draw||null;lastLoad=Date.now();render()}
+  if(res&&res.ok){entries=res.entries||[];draw=res.draw||null;lastLoad=Date.now();loaded=true;
+    try{localStorage.setItem("raffleCache",JSON.stringify({entries,draw,at:lastLoad}))}catch(e){}
+    $("updated").textContent="Updated "+new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    render()}
 }
 async function refresh(){
   if(busy||rolling)return;
-  try{apply(await getData());$("updated").textContent="Updated "+new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}
+  try{apply(await getData(false))}
   catch(e){$("updated").textContent="Can't reach the ledger right now. Retrying…"}
+  // Check Venmo in the background, at most every 20 seconds, without slowing the page.
+  if(Date.now()-lastSync>20000){lastSync=Date.now();
+    getData(true).then(r=>{if(!busy&&!rolling)apply(r)}).catch(()=>{})}
 }
 
 /* ---------- Render ---------- */
@@ -244,12 +251,13 @@ function render(){
   const T=totals(), host=isHost();
   document.querySelectorAll(".host-only").forEach(el=>el.hidden=!host);
   $("hostToggle").textContent=host?"Exit host mode":"Host";
-  $("pot").textContent=money(T.paid+T.owed);$("tixCount").textContent=T.t;$("ppl").textContent=T.people.length;
+  $("pot").textContent=loaded?money(T.paid+T.owed):"…";$("tixCount").textContent=loaded?T.t:"…";$("ppl").textContent=loaded?T.people.length:"…";
   $("sPaid").textContent=money(T.paid+(host?0:T.owed));$("sGame").textContent=T.game/PRICE;$("sOwed").textContent=money(T.owed);
   $("names").innerHTML=T.people.map(p=>`<option value="${esc(p.name)}">`).join("");
 
   const L=$("list");
-  if(!entries.length){L.innerHTML=`<div class="empty">${host?"No tickets yet. Log the first sale above and it gets ticket #1.":"No tickets sold yet. Be the first."}</div>`}
+  if(!loaded){L.innerHTML=`<div class="empty">Loading tickets…</div>`}
+  else if(!entries.length){L.innerHTML=`<div class="empty">${host?"No tickets yet. Log the first sale above and it gets ticket #1.":"No tickets sold yet. Be the first."}</div>`}
   else if(tab==="log"){
     L.innerHTML=[...entries].sort((a,b)=>b.from-a.from).map(e=>{
       let tags="";
@@ -409,6 +417,8 @@ $("keyBtn").onclick=async()=>{
 /* ---------- Boot ---------- */
 if(API_URL.startsWith("PASTE")){$("list").innerHTML=`<div class="empty">Add your Apps Script web app URL at the top of index.html.</div>`;$("updated").textContent="Not connected"}
 else{
+  try{const c=JSON.parse(localStorage.getItem("raffleCache")||"null");
+    if(c&&c.entries){entries=c.entries;draw=c.draw||null;loaded=true;$("updated").textContent="Showing last saved numbers · updating…"}}catch(e){}
   render();refresh();
   setInterval(()=>{if(document.visibilityState==="visible")refresh()},10000);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-lastLoad>5000)refresh()});
