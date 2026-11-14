@@ -99,7 +99,7 @@ input[type=text],input[type=password]{flex:1 1 180px;min-width:0;font:inherit;pa
 .game-row .gnum{font-family:var(--display);font-weight:800;font-size:20px;width:2.2em;color:var(--gold)}
 .game-row.locked{opacity:.55}
 .game-row .award{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
-.game-row .award input{flex:1 1 160px}
+.game-row .award select{flex:1 1 160px;min-width:0;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
 .game-row .award button{width:auto;flex:0 0 auto}
 footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -289,6 +289,7 @@ function renderGames(){
   $("gamesCount").textContent=`${played} of ${MINIGAMES} played`;
   let next=0;for(let g=1;g<=MINIGAMES;g++)if(!won[g]){next=g;break}
   const keepVal=$("gameName")?$("gameName").value:"";
+  const people=totals().people.map(p=>p.name).filter(Boolean).sort((a,b)=>a.localeCompare(b));
   let html="";
   for(let g=1;g<=MINIGAMES;g++){
     const e=won[g];
@@ -297,13 +298,13 @@ function renderGames(){
       html+=`<div class="game-row"><span class="gnum">G${g}</span><div class="who"><strong>${esc(e.name)}</strong><span class="meta">${GAME_TICKETS} free tickets · ${range(e)}</span></div><span>${undo}</span></div>`;
     } else if(g===next&&!draw){
       html+=`<div class="game-row"><span class="gnum">G${g}</span><div class="who"><strong>Up now</strong><span class="meta">Who won game ${g}?</span></div><span></span>
-        <div class="award"><input type="text" id="gameName" list="names" placeholder="Winner's name" autocomplete="off" aria-label="Winner of game ${g}"><button class="primary" id="gameBtn" data-game="${g}">Award ${GAME_TICKETS} tickets</button></div></div>`;
+        <div class="award">${people.length?`<select id="gameName" aria-label="Winner of game ${g}"><option value="">Choose the winner…</option>${people.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select><button class="primary" id="gameBtn" data-game="${g}">Award ${GAME_TICKETS} tickets</button>`:`<span class="hint">Log at least one ticket first. Winners are picked from names on the ledger.</span>`}</div></div>`;
     } else {
       html+=`<div class="game-row locked"><span class="gnum">G${g}</span><div class="who"><strong>${draw?"Not played":"Locked"}</strong><span class="meta">${draw?"The draw already happened":"Opens after game "+(g-1)}</span></div><span></span></div>`;
     }
   }
   $("games").innerHTML=html;
-  if($("gameName")){$("gameName").value=keepVal;$("gameBtn").disabled=busy}
+  if($("gameName")){if(people.includes(keepVal))$("gameName").value=keepVal;$("gameBtn").disabled=busy}
 }
 
 function flash(msg,err){const t=$("toast");t.textContent=msg;t.classList.toggle("err",!!err);clearTimeout(flash.t);flash.t=setTimeout(()=>t.textContent="",5000)}
@@ -351,11 +352,12 @@ $("games").onclick=async e=>{
   const t=e.target,d=t.dataset;
   if(t.id==="gameBtn"){
     const name=$("gameName").value.trim(),g=Number(d.game);
-    if(!name){gameFlash("Type the winner's name first.",true);$("gameName").focus();return}
+    if(!name){gameFlash("Choose the winner from the list first.",true);$("gameName").focus();return}
     busy=true;t.disabled=true;
     try{const res=await post("awardGame",{name,game:g});
       if(res.ok){$("gameName").value="";apply(res);gameFlash(`${name} won game ${g}: ${GAME_TICKETS} free tickets added.`)}
       else if(res.error==="bad_key"){gameFlash("Host key didn't match. Unlock host mode again.",true);setKey(null)}
+      else if(res.error==="not_on_ledger")gameFlash("That name isn't on the ledger. Choose from the list.",true);
       else if(res.error==="game_done")gameFlash(`Game ${g} already has a winner.`,true);
       else if(res.error==="closed")gameFlash("The draw already happened.",true);
       else gameFlash("That didn't save. Try again.",true);
